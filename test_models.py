@@ -9,14 +9,14 @@ def test_create_entity():
 
 def test_entity_in_catalogue():
     w = World()
-    e = w.create_entity(AddToCart())
+    e = w.create_entity(AddToCart("test product", 2))
 
     assert w.entity_in_catalogue(e)
 
 
 def test_remove_entity():
     w = World()
-    e = w.create_entity(AddToCart())
+    e = w.create_entity(AddToCart("test product", 2))
 
     assert e != None
     assert w.entity_in_catalogue(e)
@@ -29,25 +29,25 @@ def test_register_system():
     w = World()
     s = System()
 
-    w.register_system("testsys", s)
-    assert w.systems["testsys"] == s
+    w.register_system(s)
+    assert w.systems[type(s)] == s
 
 
 def test_unregister_system():
     w = World()
     s = CartSystem()
-    w.register_system("cartsys", s)
+    w.register_system(s)
 
-    assert w.systems.get("cartsys") == s
+    assert w.systems.get(type(s)) == s
 
-    w.unregister_system("cartsys")
-    assert w.systems.get("cartsys") == None
+    w.unregister_system(s)
+    assert w.systems.get(type(s)) == None
 
 
 def test_view_catalogue():
     w = World()
 
-    w.create_entity(AddToCart())
+    w.create_entity(AddToCart("test product", 2))
 
     w.view_catalogue()
 
@@ -55,21 +55,21 @@ def test_view_catalogue():
 def test_get_entities_with_components():
     w = World()
 
-    created_entity = w.create_entity(AddToCart())
+    created_entity = w.create_entity(AddToCart("test product", 2))
 
-    assert w.query(AddToCart()) == [created_entity]
+    assert w.query(AddToCart) == [created_entity]
 
-    new_entity = w.create_entity(AddToCart(), ApplySpecialOffer())
+    new_entity = w.create_entity(AddToCart("test product", 2), ApplySpecialOffer("buy one get one 50% off"))
 
-    assert w.query(AddToCart(), ApplySpecialOffer()) == [new_entity]
+    assert w.query(AddToCart, ApplySpecialOffer) == [new_entity]
 
-    assert w.query(AddToCart()) != \
-        w.query(AddToCart(), ApplySpecialOffer())
+    assert w.query(AddToCart) != \
+        w.query(AddToCart, ApplySpecialOffer)
 
 
 def test_process():
     w = World()
-    e = w.create_entity(AddToCart())
+    e = w.create_entity(AddToCart("test product", 2))
     cs = CartSystem()
 
     cs.process(w)

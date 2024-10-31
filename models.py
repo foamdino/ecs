@@ -7,34 +7,42 @@ entity_count = count(start=1)
 class World:
     """Holds the entire state
        * systems registered
-       * catalogue of entities
+       * catalogue of entities: dictionary of component_types -> entity_list
+       * dictionary of entities (k) with the component data (v)
     """
     def __init__(self):
         self.systems = {}
         self.catalogue = {}
-
+        self.entities = {}
 
     def create_entity(self, *components):
         e = next(entity_count)
+
+        # store the entity and associated list of components
+        self.entities[e] = components
 
         # for each component associated with this entity
         # create a dict for the component (if it's the first time we've seen that component type)
         # essentially we build a catalogue
         for c in components:
-            if self.catalogue.get(c) is None:
-                self.catalogue[c] = []
+            if self.catalogue.get(type(c)) is None:
+                self.catalogue[type(c)] = []
 
             # register this entity into the list associated with this component
-            c_list = self.catalogue.get(c)
+            c_list = self.catalogue.get(type(c))
             c_list.append(e)
 
         return e
+
 
     def remove_entity(self, entity):
         """Checks the catalogue of dictionaries and removes the entity from each one"""
         for k,v in self.catalogue.items():
             if entity in v:
                 self.catalogue[k].remove(entity)
+
+        # finally delete entity from entities
+        del self.entities
 
 
     def entity_in_catalogue(self, entity):
@@ -53,32 +61,44 @@ class World:
             print(f"{k} -> {v}")
 
 
-    def register_system(self, sysname, system):
+    def view_entities(self):
+        print(f"Entities {self.entities}")
+        for k,v in self.entities.items():
+            print(f"{k} -> {v}")
+
+
+    def register_system(self, system):
         """Registers a system with the world - maybe move this to global later?"""
-        self.systems[sysname] = system
+        self.systems[type(system)] = system
 
 
-    def unregister_system(self, sysname):
+    def unregister_system(self, system):
         """Unregister a system"""
-        del self.systems[sysname]
+        del self.systems[type(system)]
+      
 
-
-    def query(self, *components):
+    def query(self, *component_types):
         matched_entities = []
         # get the first list of entities matching the first component
-        entities = self.catalogue[components[0]]
+        print(f"components[0]: {component_types[0]}")
+        entities = self.catalogue[component_types[0]]
 
         # simple case - only one component so everything in this list 'matches'
-        if len(components) == 1:
+        if len(component_types) == 1:
             matched_entities = entities
 
         else:
             # now for each of the entities in the first list - match with each subsequent list
             for e in entities:
-                #print(f"looking up for {e}")
-                for c in components[1:]:
-                    if e in self.catalogue[c]:
-                        matched_entities.append(e)
+                print(f"looking up for {e}")
+                for c in component_types[1:]:
+                    print(f"using {c} to lookup")
+                    if c in self.catalogue:
+                        if e in self.catalogue[c]:
+                            matched_entities.append(e)
+                    else:
+                        print(f"{c} not found in catalogue")
+
 
         return matched_entities
 
@@ -109,16 +129,32 @@ class CartSystem(System):
         """
         Find all the entities with the components we care about: filter
         """
-        to_process = world.query(AddToCart(), RemoveFromCart(), ApplySpecialOffer())
+        print("processing cart system...")
+        to_process = world.query(AddToCart)
+        for e in to_process:
+            comps = world.entities[e]
+            for c in comps:
+                if type(c) == AddToCart:
+                    print(f"found: {e}, adding {c.qty} of {c.product_id} to shopping cart")
 
-@dataclass(frozen=True)
+
+
 class AddToCart(Component):
-    pass
+    product_id: str
+    qty: int
 
-@dataclass(frozen=True)
+    def __init__(self, product_id="", qty=-1):
+        self.product_id = product_id
+        self.qty = qty
+
+@dataclass
 class RemoveFromCart(Component):
-    pass
+    product_id: str
+    qty: int
 
-@dataclass(frozen=True)
+@dataclass
 class ApplySpecialOffer(Component):
-    pass
+    message: str
+
+    def __init__(self, message):
+        self.message = message
